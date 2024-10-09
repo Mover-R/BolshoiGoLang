@@ -1,19 +1,19 @@
 package storage
 
 import (
+	"strconv"
+
 	"go.uber.org/zap"
 )
 
 type Value struct {
-	s string
-	d int
-	a any
-	b bool
+	s    string
+	kind string
 }
 
 type Storage struct {
-	innerString map[string]Value
-	logger      *zap.Logger
+	inner  map[string]Value
+	logger *zap.Logger
 }
 
 func NewStorage() (Storage, error) {
@@ -32,9 +32,16 @@ func NewStorage() (Storage, error) {
 }
 
 func (r Storage) Set(key, value string) {
-	r.inner[key] = value
+	switch Get_type(value) {
+	case "D":
+		r.inner[key] = Value{s: value, kind: "D"}
+	case "Fl64":
+		r.inner[key] = Value{s: value, kind: "Fl64"}
+	case "S":
+		r.inner[key] = Value{s: value, kind: "S"}
+	}
 
-	r.logger.Info("key set", zap.Any())
+	r.logger.Info("key set")
 	r.logger.Sync()
 }
 
@@ -44,9 +51,15 @@ func (r Storage) Get(key string) *string {
 		return nil
 	}
 
-	return &res
+	return &res.s
 }
 
-func sum[T int64 | uint64](x, y T) T {
-	return x + y
+func Get_type(value string) string {
+	if _, err := strconv.Atoi(value); err == nil {
+		return "D"
+	}
+	if _, err := strconv.ParseFloat(value, 64); err == nil {
+		return "Fl64"
+	}
+	return "S"
 }
