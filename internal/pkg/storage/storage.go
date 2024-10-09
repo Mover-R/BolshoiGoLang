@@ -1,26 +1,32 @@
-// Data base
 package storage
 
 import (
 	"go.uber.org/zap"
 )
 
-type Storage struct {
-	inner  map[string]string
-	logger *zap.Logger
+type Value struct {
+	s string
+	d int
+	a any
+	b bool
 }
 
-func InitStorage() (Storage, error) {
-	logger, err := zap.NewProduction()
+type Storage struct {
+	innerString map[string]Value
+	logger      *zap.Logger
+}
 
+func NewStorage() (Storage, error) {
+	logger, err := zap.NewProduction()
 	if err != nil {
 		return Storage{}, err
 	}
+
 	defer logger.Sync()
-	logger.Info("Created new storage!")
+	logger.Info("created new storage")
 
 	return Storage{
-		inner:  make(map[string]string),
+		inner:  make(map[string]Value),
 		logger: logger,
 	}, nil
 }
@@ -28,7 +34,7 @@ func InitStorage() (Storage, error) {
 func (r Storage) Set(key, value string) {
 	r.inner[key] = value
 
-	r.logger.Info("Key set")
+	r.logger.Info("key set", zap.Any())
 	r.logger.Sync()
 }
 
@@ -37,7 +43,10 @@ func (r Storage) Get(key string) *string {
 	if !ok {
 		return nil
 	}
-	r.logger.Info("key obtained")
-	r.logger.Sync()
+
 	return &res
+}
+
+func sum[T int64 | uint64](x, y T) T {
+	return x + y
 }
