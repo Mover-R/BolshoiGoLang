@@ -32,7 +32,7 @@ func NewStorage() (Storage, error) {
 }
 
 func (r Storage) Set(key, value string) {
-	switch Get_type(value) {
+	switch GetType(value) {
 	case "D":
 		r.inner[key] = Value{s: value, kind: "D"}
 	case "Fl64":
@@ -54,7 +54,7 @@ func (r Storage) Get(key string) *string {
 	return &res.s
 }
 
-func Get_type(value string) string {
+func GetType(value string) string {
 	if _, err := strconv.Atoi(value); err == nil {
 		return "D"
 	}
