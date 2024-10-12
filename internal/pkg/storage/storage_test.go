@@ -5,57 +5,73 @@ import (
 	"testing"
 )
 
-func TestGetType(t *testing.T) {
-	fmt.Println("Tests for GetType()")
-
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"123", "D"},
-		{"123.45", "Fl64"},
-		{"hello", "S"},
-		{"0", "D"},
-		{"-42", "D"},
-	}
-
-	for _, test := range tests {
-		res := GetType(test.input)
-		if res != test.expected {
-			t.Errorf("GetType(%q) = %q != Expexted_type %q\n", test.input, res, test.expected)
-		}
-	}
+type testCase struct {
+	name  string
+	key   string
+	value string
+	kind  string
 }
 
 func TestSetGet(t *testing.T) {
-	fmt.Println("Tests for Set() Get()")
-
+	fmt.Println("Tests for Set(), Get()")
 	s, err := NewStorage()
 	if err != nil {
-		t.Fatal("Storage didnt created")
+		t.Error("Bad storage")
 	}
-
-	tests := []struct {
-		in  string
-		out string
-	}{
-		{"key1", "value1"},
-		{"key2", "value2"},
-		{"key3", "value3"},
-		{"key4", ""},
-	}
-
-	for _, test := range tests {
-		s.Set(test.in, test.out)
+	tests := []testCase{
+		{"Test1", "key1", "123", "D"},
+		{"Test2", "key2", "123.45", "Fl64"},
+		{"Test3", "key3", "hello", "S"},
+		{"Test4", "key4", "0", "D"},
+		{"Test5", "key5", "-42", "D"},
+		{"Test6", "key6", "", "S"},
 	}
 
 	for _, test := range tests {
-		res := s.Get(test.in)
-		if res == nil {
-			t.Fatal("No such key")
-		}
-		if (*res) != test.out {
-			t.Errorf("Get(%q) = %q != Expected %q", test.in, *res, test.out)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			s.Set(test.key, test.value)
+
+			res := s.Get(test.key)
+
+			if *res != test.value {
+				t.Error("Values arent equal")
+			}
+		})
 	}
+}
+
+func TestSetGetWithType(t *testing.T) {
+	fmt.Println("Tests for GetType(), Set, Get")
+	s, err := NewStorage()
+	if err != nil {
+		t.Error("Bad storage")
+	}
+	tests := []testCase{
+		{"Test1", "key1", "123", "D"},
+		{"Test2", "key2", "123.45", "Fl64"},
+		{"Test3", "key3", "hello", "S"},
+		{"Test4", "key4", "0", "D"},
+		{"Test5", "key5", "-42", "D"},
+		{"Test6", "key6", "", "S"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			s.Set(test.key, test.value)
+
+			res := s.Get(test.key)
+
+			if *res != test.value {
+				t.Error("Values arent equal")
+			}
+
+			if GetType(*res) != test.kind {
+				t.Error("GetType is not equal to test's type")
+			}
+		})
+	}
+}
+
+func BenchmarkGetType(t *testing.B) {
+
 }
