@@ -17,7 +17,7 @@ type Storage struct {
 }
 
 func NewStorage() (Storage, error) {
-	logger, err := zap.NewProduction()
+	logger, err := zap.NewProduction(zap.IncreaseLevel(zap.FatalLevel))
 
 	if err != nil {
 		return Storage{}, err
