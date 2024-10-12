@@ -7,6 +7,7 @@ import (
 
 func main() {
 	s, err := storage.NewStorage()
+
 	if err != nil {
 		fmt.Println("Something broke(")
 		return

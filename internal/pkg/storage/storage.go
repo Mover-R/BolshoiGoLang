@@ -18,6 +18,7 @@ type Storage struct {
 
 func NewStorage() (Storage, error) {
 	logger, err := zap.NewProduction()
+
 	if err != nil {
 		return Storage{}, err
 	}

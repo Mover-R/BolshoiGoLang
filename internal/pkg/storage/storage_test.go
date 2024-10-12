@@ -7,6 +7,7 @@ import (
 
 func TestGetType(t *testing.T) {
 	fmt.Println("Tests for GetType()")
+
 	tests := []struct {
 		input    string
 		expected string
@@ -17,6 +18,7 @@ func TestGetType(t *testing.T) {
 		{"0", "D"},
 		{"-42", "D"},
 	}
+
 	for _, test := range tests {
 		res := GetType(test.input)
 		if res != test.expected {
@@ -27,10 +29,12 @@ func TestGetType(t *testing.T) {
 
 func TestSetGet(t *testing.T) {
 	fmt.Println("Tests for Set() Get()")
+
 	s, err := NewStorage()
 	if err != nil {
 		t.Fatal("Storage didnt created")
 	}
+
 	tests := []struct {
 		in  string
 		out string
@@ -40,9 +44,11 @@ func TestSetGet(t *testing.T) {
 		{"key3", "value3"},
 		{"key4", ""},
 	}
+
 	for _, test := range tests {
 		s.Set(test.in, test.out)
 	}
+
 	for _, test := range tests {
 		res := s.Get(test.in)
 		if res == nil {
