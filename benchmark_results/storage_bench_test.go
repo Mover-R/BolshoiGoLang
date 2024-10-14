@@ -61,8 +61,8 @@ func BenchmarkGet(b *testing.B) {
 			for i := 0; i < bb.N; i++ {
 				indx := rand.Intn(len(keys))
 				key := keys[indx]
-				res := s.Get(key)
-				if res == nil {
+				_, ok := s.Get(key)
+				if ok == nil {
 					bb.Error("Bad Get function")
 				}
 			}
@@ -121,8 +121,8 @@ func BenchmarkSetGet(b *testing.B) {
 				indx := rand.Intn(len(keys))
 				key := keys[indx]
 				s.Set(key, values[indx])
-				res := s.Get(key)
-				if res == nil {
+				_, ok := s.Get(key)
+				if ok == nil {
 					bb.Error("Bad Get function")
 				}
 			}

@@ -31,9 +31,12 @@ func TestSetGet(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			s.Set(test.key, test.value)
 
-			res := s.Get(test.key)
+			res, ok := s.Get(test.key)
+			if ok != nil {
+				fmt.Errorf("Bad storage: no such key: %q", test.key)
+			}
 
-			if *res != test.value {
+			if res != test.value {
 				t.Error("Values arent equal")
 			}
 		})
@@ -59,19 +62,18 @@ func TestSetGetWithType(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			s.Set(test.key, test.value)
 
-			res := s.Get(test.key)
+			res, ok := s.Get(test.key)
+			if ok != nil {
+				fmt.Errorf("Bad storage: no such key: %q", test.key)
+			}
 
-			if *res != test.value {
+			if res != test.value {
 				t.Error("Values arent equal")
 			}
 
-			if GetType(*res) != test.kind {
+			if GetType(res) != test.kind {
 				t.Error("GetType is not equal to test's type")
 			}
 		})
 	}
-}
-
-func BenchmarkGetType(t *testing.B) {
-
 }

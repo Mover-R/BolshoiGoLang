@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"strconv"
 
 	"go.uber.org/zap"
@@ -15,6 +16,12 @@ type Storage struct {
 	inner  map[string]Value
 	logger *zap.Logger
 }
+
+const (
+	KindDigit   = "D"
+	KindFloat64 = "Fl64"
+	KindString  = "S"
+)
 
 func NewStorage() (Storage, error) {
 	logger, err := zap.NewProduction(zap.IncreaseLevel(zap.FatalLevel))
@@ -34,33 +41,31 @@ func NewStorage() (Storage, error) {
 
 func (r Storage) Set(key, value string) {
 	switch GetType(value) {
-	case "D":
+	case KindDigit:
 		r.inner[key] = Value{s: value, kind: "D"}
-	case "Fl64":
+	case KindFloat64:
 		r.inner[key] = Value{s: value, kind: "Fl64"}
-	case "S":
+	case KindString:
 		r.inner[key] = Value{s: value, kind: "S"}
 	}
 
 	r.logger.Info("key set")
-	r.logger.Sync()
 }
 
-func (r Storage) Get(key string) *string {
+func (r Storage) Get(key string) (string, error) {
 	res, ok := r.inner[key]
 	if !ok {
-		return nil
+		return "", fmt.Errorf("No such key: %q", key)
 	}
-
-	return &res.s
+	return res.s, nil
 }
 
 func GetType(value string) string {
 	if _, err := strconv.Atoi(value); err == nil {
-		return "D"
+		return KindDigit
 	}
 	if _, err := strconv.ParseFloat(value, 64); err == nil {
-		return "Fl64"
+		return KindFloat64
 	}
-	return "S"
+	return KindString
 }
