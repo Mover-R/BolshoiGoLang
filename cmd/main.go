@@ -1,35 +1,52 @@
 package main
 
 import (
-	"BolshiGoLang/internal/pkg/storage"
+	"BolshiGoLang/fileutils"
+	"bufio"
 	"fmt"
+	"os"
 )
 
 func main() {
-	s, err := storage.NewStorage()
-
+	s, err := fileutils.FileRead()
 	if err != nil {
-		fmt.Println("Something broken(")
 		return
 	}
 
-	s.Set("0", "mamba")
-	s.Set("1", "22")
-	s.Set("2", "22.2")
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Println("RWrite the number of operation 1 - Set key, value; 2 - Get key; 2 times Enter to exit")
+		var i string
+		i, _ = reader.ReadString('\n')
+		i = i[:len(i)-1]
+		if i == "1" {
+			input, err := reader.ReadString('\n')
+			if err != nil || len(input) == 1 {
+				break
+			}
+			input = input[:len(input)-1]
+			var key, value string
+			_, err = fmt.Sscanf(input, "%s %s", &key, &value)
+			//fmt.Printf("%s, %s, %s\n", input, key, value)
+			if err != nil {
+				continue
+			}
+			s.Set(key, value)
+			fmt.Println("OK")
+		} else {
+			input, err := reader.ReadString('\n')
+			if err != nil || len(input) == 1 {
+				break
+			}
+			input = input[:len(input)-1]
+			var key string
+			_, err = fmt.Sscanf(input, "%s", &key)
+			fmt.Println(s.Get(key))
+		}
+	}
 
-	res, ok := s.Get("0")
-	if ok != nil {
-		fmt.Errorf("Bad storage: no such key: %q", "0")
+	err = fileutils.FileWrite(s)
+	if err != nil {
+		return
 	}
-	res1, ok1 := s.Get("1")
-	if ok1 != nil {
-		fmt.Errorf("Bad storage: no such key: %q", "0")
-	}
-	res2, ok2 := s.Get("0")
-	if ok2 != nil {
-		fmt.Errorf("Bad storage: no such key: %q", "0")
-	}
-	fmt.Println(res, storage.GetType(res))
-	fmt.Println(res1, storage.GetType(res1))
-	fmt.Println(res2, storage.GetType(res2))
 }
