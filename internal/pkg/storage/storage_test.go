@@ -33,7 +33,7 @@ func TestSetGet(t *testing.T) {
 
 			res, ok := s.Get(test.key)
 			if ok != nil {
-				fmt.Errorf("Bad storage: no such key: %q", test.key)
+				t.Errorf("Bad storage: no such key: %q", test.key)
 			}
 
 			if res != test.value {
@@ -64,7 +64,7 @@ func TestSetGetWithType(t *testing.T) {
 
 			res, ok := s.Get(test.key)
 			if ok != nil {
-				fmt.Errorf("Bad storage: no such key: %q", test.key)
+				t.Errorf("Bad storage: no such key: %q", test.key)
 			}
 
 			if res != test.value {
