@@ -1,12 +1,21 @@
 package main
 
 import (
-	"BolshiGoLang/fileutils"
-	"bufio"
-	"fmt"
-	"os"
+	"BolshiGoLang/internal/pkg/server"
+	"BolshiGoLang/internal/pkg/storage"
 )
 
+func main() {
+	r, err := storage.NewStorage()
+	if err != nil {
+		panic(err)
+	}
+	s := server.NewServer(":8090", &r)
+
+	s.Start()
+}
+
+/*
 func main() {
 	s, err := fileutils.FileRead()
 	if err != nil {
@@ -50,3 +59,4 @@ func main() {
 		return
 	}
 }
+*/
