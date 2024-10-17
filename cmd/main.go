@@ -1,18 +1,23 @@
 package main
 
 import (
+	"BolshiGoLang/fileutils"
 	"BolshiGoLang/internal/pkg/server"
-	"BolshiGoLang/internal/pkg/storage"
 )
 
 func main() {
-	r, err := storage.NewStorage()
+	r, err := fileutils.FileRead()
 	if err != nil {
 		panic(err)
 	}
-	s := server.NewServer(":8090", &r)
+	s := server.NewServer(":8090", r)
 
 	s.Start()
+
+	err = fileutils.FileWrite(r)
+	if err != nil {
+		return
+	}
 }
 
 /*
@@ -54,9 +59,6 @@ func main() {
 		}
 	}
 
-	err = fileutils.FileWrite(s)
-	if err != nil {
-		return
-	}
+
 }
 */
