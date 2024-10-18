@@ -3,6 +3,9 @@ package main
 import (
 	"BolshiGoLang/fileutils"
 	"BolshiGoLang/internal/pkg/server"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -12,12 +15,21 @@ func main() {
 	}
 	s := server.NewServer(":8090", r)
 
-	s.Start()
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
-	err = fileutils.FileWrite(r)
-	if err != nil {
-		return
-	}
+	go func() {
+		s.Start()
+	}()
+
+	<-signalChan
+
+	defer func() {
+		err = fileutils.FileWrite(r)
+		if err != nil {
+			return
+		}
+	}()
 }
 
 /*
