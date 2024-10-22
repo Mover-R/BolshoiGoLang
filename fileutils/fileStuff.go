@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 )
 
-func FilePath() string {
+func DataStorageFilePath() string {
 	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Println("error directory")
@@ -17,34 +18,13 @@ func FilePath() string {
 	return path.Join(cwd, "data.json")
 }
 
-func FileRead() (*storage.Storage, error) {
-	filepath := FilePath()
+func DataStorageFileRead() (*storage.Storage, error) {
+	filepath := DataStorageFilePath()
 	_, err := os.Stat(filepath)
 	if os.IsNotExist(err) {
-		fmt.Println("Creating file...")
-
-		file, err := os.Create(filepath)
-		if err != nil {
-			fmt.Println("Fail creating file")
-			return nil, err
-		}
-		defer file.Close()
-
 		emptystorage, err := storage.NewStorage()
 		if err != nil {
-			fmt.Println("storage error")
-			return nil, err
-		}
-		data, err := json.Marshal(emptystorage)
-		if err != nil {
-			fmt.Println("fail marshal storage")
-			return nil, err
-		}
-
-		_, err = file.Write(data)
-		if err != nil {
-			fmt.Println("Fail writing file")
-			return nil, err
+			return nil, fmt.Errorf("storage error: %w", err)
 		}
 
 		return &emptystorage, nil
@@ -55,6 +35,7 @@ func FileRead() (*storage.Storage, error) {
 		fmt.Println("fail reading file")
 		return nil, err
 	}
+
 	var s storage.Storage
 	err = json.Unmarshal(data, &s)
 	if err != nil {
@@ -65,24 +46,21 @@ func FileRead() (*storage.Storage, error) {
 	return &s, nil
 }
 
-func FileWrite(s *storage.Storage) error {
-	filepath := FilePath()
-	file, err := os.Create(filepath)
+func DataStorageFileWrite(s *storage.Storage) error {
+	tempFile, err := os.CreateTemp(filepath.Dir("data.json"), "temp-")
 	if err != nil {
-		fmt.Println("fail creating file")
 		return err
 	}
-	defer file.Close()
+	defer os.Remove(tempFile.Name())
 
 	data, err := json.Marshal(s)
 	if err != nil {
-		fmt.Println("fail marshal storage")
-		return err
+		return fmt.Errorf("fail marshal storage: %w", err)
 	}
-	_, err = file.Write(data)
-	if err != nil {
-		fmt.Println("fail writing data")
-		return err
+	if _, err := tempFile.Write(data); err != nil {
+		return fmt.Errorf("fail writing data: %w", err)
 	}
-	return nil
+	tempFile.Close()
+
+	return os.Rename(tempFile.Name(), "data.json")
 }

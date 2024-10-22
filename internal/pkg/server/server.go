@@ -39,6 +39,8 @@ func (r Server) newAPI() *gin.Engine {
 }
 
 func (r Server) handlerSet(ctx *gin.Context) {
+	r.storage.Mu.Lock()
+	defer r.storage.Mu.Unlock()
 	key := ctx.Param("key")
 
 	var v Entry
@@ -52,11 +54,12 @@ func (r Server) handlerSet(ctx *gin.Context) {
 }
 
 func (r Server) handlerGet(ctx *gin.Context) {
+	r.storage.Mu.Lock()
+	defer r.storage.Mu.Unlock()
 	key := ctx.Param("key")
 
-	v, err := r.storage.Get(key)
-
-	if err != nil {
+	v, ok := r.storage.Get(key)
+	if ok != nil {
 		ctx.AbortWithStatus(http.StatusNotFound)
 		return
 	}

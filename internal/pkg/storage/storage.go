@@ -3,7 +3,9 @@ package storage
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
+	"sync"
 
 	"go.uber.org/zap"
 )
@@ -17,6 +19,7 @@ type Storage struct {
 	Inner      map[string]Value `json:"inner"`
 	logger     *zap.Logger
 	ArrayStore map[string][]string `json:"ArrayStore"`
+	Mu         sync.Mutex
 }
 
 const (
@@ -28,7 +31,6 @@ const (
 
 func NewStorage() (Storage, error) {
 	logger, err := zap.NewProduction(zap.IncreaseLevel(zap.FatalLevel))
-
 	if err != nil {
 		return Storage{}, err
 	}
@@ -43,7 +45,7 @@ func NewStorage() (Storage, error) {
 	}, nil
 }
 
-func (r Storage) Set(key, value string) {
+func (r *Storage) Set(key, value string) {
 	if r.Inner == nil {
 		r.Inner = make(map[string]Value)
 	}
@@ -62,7 +64,7 @@ func (r Storage) Set(key, value string) {
 	r.logger.Info("key set")
 }
 
-func (r Storage) Get(key string) (string, error) {
+func (r *Storage) Get(key string) (string, error) {
 	if r.Inner == nil {
 		r.Inner = make(map[string]Value)
 	}
@@ -86,82 +88,62 @@ func GetType(value string) string {
 	return KindString
 }
 
-func reverse(slice []string) {
-	for i, j := 0, len(slice)-1; i < j; i, j = i+1, j-1 {
-		slice[i], slice[j] = slice[j], slice[i]
-	}
-}
-
-func (r Storage) PrintArr(key string) {
-	if _, err := r.ArrayStore[key]; !err {
-		fmt.Errorf("no such key")
+func (r *Storage) PrintArr(key string) {
+	if _, ok := r.ArrayStore[key]; !ok {
 		return
 	}
 	fmt.Println(r.ArrayStore[key])
 }
 
-func (r Storage) LPUSH(key string, elements ...string) {
-	if _, err := r.ArrayStore[key]; !err {
-		r.ArrayStore[key] = []string{}
-	}
-	//reverse(elements)
+func (r *Storage) LPUSH(key string, elements ...string) {
 	r.ArrayStore[key] = append(elements, r.ArrayStore[key]...)
 }
 
-func (r Storage) LPOP(key string, count ...int) ([]string, error) {
+func (r *Storage) LPOP(key string, count ...int) ([]string, error) {
 	if _, exists := r.ArrayStore[key]; !exists {
 		return []string{}, errors.New("no such key")
 	}
+
 	list := r.ArrayStore[key]
 	to_return := []string{}
+	var left, right int
 	if len(count) == 0 {
-		if len(list) <= 0 {
-			return []string{}, errors.New("no more elements in list")
-		}
-		res := list[:1]
-		to_return = append(to_return, res...)
-		list = list[1:]
-		r.ArrayStore[key] = list
-		return to_return, nil
+		left, right = 0, 1
 	} else if len(count) == 1 {
-		if len(list) < count[0] {
-			return []string{}, errors.New("no more elements in list")
-		}
-		res := list[:count[0]]
-		to_return = append(to_return, res...)
-		list = list[count[0]:]
-		r.ArrayStore[key] = list
-		return to_return, nil
+		left, right = 0, count[0]
 	} else if len(count) == 2 {
-		if count[0] < 0 {
-			count[0] += len(list)
+		left, right = count[0], count[1]
+		if left < 0 {
+			left += len(list)
 		}
-		if count[1] < 0 {
-			count[1] += len(list)
+		if right < 0 {
+			right += len(list)
 		}
-		if len(list) < count[1]-count[0] {
-			return []string{}, errors.New("no more elements in list")
-		}
-		res := list[count[0] : count[1]+1]
-		to_return = append(to_return, res...)
-		list = append(list[:count[0]], list[1+count[1]:]...)
-		r.ArrayStore[key] = list
-		return to_return, nil
+	} else {
+		return []string{}, errors.New("incorrect data")
 	}
-	return []string{}, errors.New("count = {'', '1', '2'}")
+
+	if left < 0 || left > len(list) || right < left || right > len(list) {
+		return []string{}, errors.New("incorrect data")
+	}
+
+	res := list[left : right+1]
+	to_return = append(to_return, res...)
+	list = append(list[:left], list[right+1:]...)
+	r.ArrayStore[key] = list
+
+	return to_return, nil
 }
 
-func (r Storage) RPUSH(key string, elements ...string) {
-	if _, exists := r.ArrayStore[key]; !exists {
-		r.ArrayStore[key] = []string{}
-	}
+func (r *Storage) RPUSH(key string, elements ...string) {
 	r.ArrayStore[key] = append(r.ArrayStore[key], elements...)
 }
 
-func (r Storage) RPOP(key string, count ...int) ([]string, error) {
+func (r *Storage) RPOP(key string, count ...int) ([]string, error) {
 	if _, exists := r.ArrayStore[key]; !exists {
 		return []string{}, errors.New("no such key")
 	}
+
 	list := r.ArrayStore[key]
 	to_return := []string{}
 	len_list := len(list)
@@ -179,7 +161,7 @@ func (r Storage) RPOP(key string, count ...int) ([]string, error) {
 			return []string{}, errors.New("no more elements in list")
 		}
 		res := list[len_list-count[0]:]
-		reverse(res)
+		slices.Reverse(res)
 		to_return = append(to_return, res...)
 		list = list[:len_list-count[0]]
 		r.ArrayStore[key] = list
@@ -199,53 +181,61 @@ func (r Storage) RPOP(key string, count ...int) ([]string, error) {
 			return []string{}, errors.New("no more elements in list")
 		}
 		res := list[count[1] : count[0]+1]
-		reverse(res)
+		slices.Reverse(res)
 		to_return = append(to_return, res...)
 		list = append(list[:count[1]], list[1+count[0]:]...)
 		r.ArrayStore[key] = list
 		return to_return, nil
 	}
+
 	return []string{}, errors.New("count = {'', '1', '2'}")
 }
 
-func (r Storage) RADDTOSET(key string, elements ...string) {
+func (r *Storage) RADDTOSET(key string, elements ...string) {
 	if _, exists := r.ArrayStore[key]; !exists {
 		r.ArrayStore[key] = []string{}
 	}
+
 	list := r.ArrayStore[key]
 	set := make(map[string]bool)
 	for _, el := range list {
 		set[el] = true
 	}
+
 	for _, el := range elements {
 		if _, ok := set[el]; !ok {
 			list = append(list, el)
 			set[el] = true
 		}
 	}
+
 	r.ArrayStore[key] = list
 }
 
-func (r Storage) LSET(key string, index int, element string) {
-	if _, exists := r.ArrayStore[key]; !exists {
-		fmt.Println("no such key")
-		return
+func (r *Storage) LSET(key string, index int, element string) error {
+	list, ok := r.ArrayStore[key]
+	if !ok {
+		return fmt.Errorf("no such key")
 	}
-	if len(r.ArrayStore[key]) < index || index < 0 {
-		fmt.Println("out of range")
-		return
+
+	if len(list) < index || index < 0 {
+		return fmt.Errorf("out of range")
 	}
-	r.ArrayStore[key][index-1] = element
-	fmt.Println("OK")
+
+	list[index-1] = element
+	r.logger.Info("Value changed")
+	return nil
 }
 
-func (r Storage) LGET(key string, index int) (string, error) {
+func (r *Storage) LGET(key string, index int) (string, error) {
 	if _, exists := r.ArrayStore[key]; !exists {
 		return "", errors.New("no such key")
 	}
+
 	if len(r.ArrayStore[key]) < index || index < 0 {
 		return "", errors.New("out of range")
 	}
+
 	element := r.ArrayStore[key][index-1]
 	fmt.Println(element)
 	return element, nil
