@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -16,10 +17,12 @@ type Value struct {
 }
 
 type Storage struct {
-	Inner      map[string]Value `json:"inner"`
-	logger     *zap.Logger
-	ArrayStore map[string][]string `json:"ArrayStore"`
-	Mu         sync.Mutex
+	Inner        map[string]Value             `json:"inner"`
+	ArrayStore   map[string][]string          `json:"arrayStore"`
+	Dictionary   map[string]map[string]string `json:"dict"`
+	ExperationAt map[string]time.Time         `json:"experationAt"`
+	logger       *zap.Logger
+	Mu           sync.RWMutex
 }
 
 const (
@@ -37,21 +40,57 @@ func NewStorage() (Storage, error) {
 
 	defer logger.Sync()
 	logger.Info("created new storage")
+	storage := Storage{
+		Inner:        make(map[string]Value),
+		ArrayStore:   make(map[string][]string),
+		Dictionary:   make(map[string]map[string]string),
+		ExperationAt: make(map[string]time.Time),
+		logger:       logger,
+	}
 
-	return Storage{
-		Inner:      make(map[string]Value),
-		logger:     logger,
-		ArrayStore: make(map[string][]string),
-	}, nil
+	go storage.startCleaning()
+
+	return storage, nil
 }
 
-func (r *Storage) Set(key, value string) {
+func (r *Storage) startCleaning() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		<-ticker.C
+		r.cleanExpiredKeys()
+	}
+}
+
+func (r *Storage) cleanExpiredKeys() {
+	r.Mu.Lock()
+	defer r.Mu.Unlock()
+
+	for key, exp := range r.ExperationAt {
+		if time.Now().After(exp) {
+			delete(r.ExperationAt, key)
+			delete(r.Inner, key)
+		}
+	}
+}
+
+func (r *Storage) Set(key, value string, exp ...int) {
+	r.Mu.Lock()
+	defer r.Mu.Unlock()
+
+	var ex int = 0
+	if len(exp) > 0 {
+		ex = exp[0]
+	}
+
 	if r.Inner == nil {
 		r.Inner = make(map[string]Value)
 	}
 	if r.logger == nil {
 		r.logger, _ = zap.NewProduction(zap.IncreaseLevel(zap.FatalLevel))
 	}
+
 	switch GetType(value) {
 	case KindDigit:
 		r.Inner[key] = Value{S: value, Kind: "D"}
@@ -61,20 +100,40 @@ func (r *Storage) Set(key, value string) {
 		r.Inner[key] = Value{S: value, Kind: "S"}
 	}
 
+	if ex > 0 {
+		r.ExperationAt[key] = time.Now().Add(time.Duration(ex) * time.Second)
+	} else {
+		delete(r.ExperationAt, key)
+	}
+
 	r.logger.Info("key set")
 }
 
 func (r *Storage) Get(key string) (string, error) {
+	r.Mu.RLock()
+	defer r.Mu.RUnlock()
+
 	if r.Inner == nil {
 		r.Inner = make(map[string]Value)
 	}
 	if r.logger == nil {
 		r.logger, _ = zap.NewProduction(zap.IncreaseLevel(zap.FatalLevel))
 	}
+
+	if exp, ok := r.ExperationAt[key]; ok && time.Now().After(exp) {
+		r.Mu.Unlock()
+		r.Mu.Lock()
+		delete(r.ExperationAt, key)
+		delete(r.Inner, key)
+		r.Mu.Unlock()
+		return "", errors.New("no such key")
+	}
+
 	res, ok := r.Inner[key]
 	if !ok {
 		return "", errors.New("no such key: ")
 	}
+
 	return res.S, nil
 }
 
@@ -239,4 +298,19 @@ func (r *Storage) LGET(key string, index int) (string, error) {
 	element := r.ArrayStore[key][index-1]
 	fmt.Println(element)
 	return element, nil
+}
+
+type entry struct {
+	field string
+	val   string
+}
+
+func (r *Storage) HSET(key string, data ...entry) {
+	if r.Dictionary[key] == nil {
+		r.Dictionary[key] = make(map[string]string)
+	}
+
+	for _, el := range data {
+		r.Dictionary[key][el.field] = el.val
+	}
 }
