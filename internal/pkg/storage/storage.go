@@ -21,6 +21,7 @@ type Storage struct {
 	ArrayStore   map[string][]string          `json:"arrayStore"`
 	Dictionary   map[string]map[string]string `json:"dict"`
 	ExperationAt map[string]time.Time         `json:"experationAt"`
+	Used         map[string]bool              `json:"used"`
 	logger       *zap.Logger
 	Mu           sync.RWMutex
 }
@@ -45,6 +46,7 @@ func NewStorage() (Storage, error) {
 		ArrayStore:   make(map[string][]string),
 		Dictionary:   make(map[string]map[string]string),
 		ExperationAt: make(map[string]time.Time),
+		Used:         make(map[string]bool),
 		logger:       logger,
 	}
 
@@ -71,6 +73,9 @@ func (r *Storage) cleanExpiredKeys() {
 		if time.Now().After(exp) {
 			delete(r.ExperationAt, key)
 			delete(r.Inner, key)
+			delete(r.Used, key)
+			delete(r.ArrayStore, key)
+			delete(r.Dictionary, key)
 		}
 	}
 }
@@ -91,14 +96,21 @@ func (r *Storage) Set(key, value string, exp ...int) {
 		r.logger, _ = zap.NewProduction(zap.IncreaseLevel(zap.FatalLevel))
 	}
 
+	if v, ok := r.Used[key]; v && ok {
+		r.logger.Info("this key is already used")
+		return
+	}
+
 	switch GetType(value) {
 	case KindDigit:
-		r.Inner[key] = Value{S: value, Kind: "D"}
+		r.Inner[key] = Value{S: value, Kind: KindDigit}
 	case KindFloat64:
-		r.Inner[key] = Value{S: value, Kind: "Fl64"}
+		r.Inner[key] = Value{S: value, Kind: KindFloat64}
 	case KindString:
-		r.Inner[key] = Value{S: value, Kind: "S"}
+		r.Inner[key] = Value{S: value, Kind: KindString}
 	}
+
+	r.Used[key] = true
 
 	if ex > 0 {
 		r.ExperationAt[key] = time.Now().Add(time.Duration(ex) * time.Second)
@@ -125,6 +137,7 @@ func (r *Storage) Get(key string) (string, error) {
 		r.Mu.Lock()
 		delete(r.ExperationAt, key)
 		delete(r.Inner, key)
+		delete(r.Used, key)
 		r.Mu.Unlock()
 		return "", errors.New("no such key")
 	}
@@ -155,6 +168,13 @@ func (r *Storage) PrintArr(key string) {
 }
 
 func (r *Storage) LPUSH(key string, elements ...string) {
+	if v, ok := r.Used[key]; v && ok {
+		r.logger.Info("this key is alredy used")
+		return
+	}
+
+	r.Used[key] = true
+
 	r.ArrayStore[key] = append(elements, r.ArrayStore[key]...)
 }
 
@@ -195,6 +215,13 @@ func (r *Storage) LPOP(key string, count ...int) ([]string, error) {
 }
 
 func (r *Storage) RPUSH(key string, elements ...string) {
+	if v, ok := r.Used[key]; v && ok {
+		r.logger.Info("this key is alredy used")
+		return
+	}
+
+	r.Used[key] = true
+
 	r.ArrayStore[key] = append(r.ArrayStore[key], elements...)
 }
 
@@ -306,6 +333,13 @@ type entry struct {
 }
 
 func (r *Storage) HSET(key string, data ...entry) {
+	if v, ok := r.Used[key]; v && ok {
+		r.logger.Info("this key is alredy used")
+		return
+	}
+
+	r.Used[key] = true
+
 	if r.Dictionary[key] == nil {
 		r.Dictionary[key] = make(map[string]string)
 	}
@@ -313,4 +347,19 @@ func (r *Storage) HSET(key string, data ...entry) {
 	for _, el := range data {
 		r.Dictionary[key][el.field] = el.val
 	}
+}
+
+func (r *Storage) HGET(key, field string) (string, bool) {
+	if v, ok := r.Used[key]; v && ok {
+		r.logger.Info("this key is alredy used")
+		return "", false
+	}
+
+	res, ok := r.Dictionary[key][field]
+	if !ok {
+		return "", false
+	}
+
+	return res, true
+
 }
