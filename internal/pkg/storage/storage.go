@@ -81,8 +81,8 @@ func (r *Storage) cleanExpiredKeys() {
 }
 
 func (r *Storage) Set(key, value string, exp ...int) {
-	r.Mu.Lock()
-	defer r.Mu.Unlock()
+	//r.Mu.Lock()
+	//defer r.Mu.Unlock()
 
 	var ex int = 0
 	if len(exp) > 0 {
@@ -122,8 +122,8 @@ func (r *Storage) Set(key, value string, exp ...int) {
 }
 
 func (r *Storage) Get(key string) (string, error) {
-	r.Mu.RLock()
-	defer r.Mu.RUnlock()
+	//r.Mu.Lock()
+	//defer r.Mu.Unlock()
 
 	if r.Inner == nil {
 		r.Inner = make(map[string]Value)
@@ -133,12 +133,9 @@ func (r *Storage) Get(key string) (string, error) {
 	}
 
 	if exp, ok := r.ExperationAt[key]; ok && time.Now().After(exp) {
-		r.Mu.Unlock()
-		r.Mu.Lock()
 		delete(r.ExperationAt, key)
 		delete(r.Inner, key)
 		delete(r.Used, key)
-		r.Mu.Unlock()
 		return "", errors.New("no such key")
 	}
 
@@ -361,5 +358,12 @@ func (r *Storage) HGET(key, field string) (string, bool) {
 	}
 
 	return res, true
+}
 
+func (r *Storage) EPIRE(key string, t int) {
+	if r.ExperationAt == nil {
+		r.ExperationAt = make(map[string]time.Time)
+	}
+
+	r.ExperationAt[key] = time.Now().Add(time.Duration(t) * time.Second)
 }

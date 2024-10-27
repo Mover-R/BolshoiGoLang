@@ -26,7 +26,7 @@ func NewServer(host string, st *storage.Storage) *Server {
 	return s
 }
 
-func (r Server) newAPI() *gin.Engine {
+func (r Server) NewAPI() *gin.Engine {
 	engine := gin.New()
 
 	engine.PUT("scalar/set/:key", r.handlerSet)
@@ -58,8 +58,8 @@ func (r Server) handlerGet(ctx *gin.Context) {
 	defer r.storage.Mu.Unlock()
 	key := ctx.Param("key")
 
-	v, ok := r.storage.Get(key)
-	if ok != nil {
+	v, err := r.storage.Get(key)
+	if err != nil {
 		ctx.AbortWithStatus(http.StatusNotFound)
 		return
 	}
@@ -68,5 +68,5 @@ func (r Server) handlerGet(ctx *gin.Context) {
 }
 
 func (r *Server) Start() {
-	r.newAPI().Run(r.host)
+	r.NewAPI().Run(r.host)
 }
