@@ -1,0 +1,16 @@
+services:
+  project:
+    build:
+      context: ""
+      dockerfile: ./docker/Dockerfile.prj
+    image: project:0.0.1
+    container_name: project
+    environment:
+    - BASIC_SERVER_PORT=8090
+    ports:
+    - "8090:8090"
+    volumes:
+    - project_data:/cmd
+
+volumes:
+  project_data:

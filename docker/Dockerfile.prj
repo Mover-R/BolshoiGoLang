@@ -1,0 +1,16 @@
+FROM golang:1.23.2 AS builder
+WORKDIR /app
+COPY go.mod .
+COPY go.sum .
+RUN ls
+
+RUN go mod download
+COPY . .
+RUN --mount=type=cache,target="/root/.cache/go-build" go build -o /app/project /app/cmd/main.go
+
+FROM ubuntu:22.04
+RUN mkdir /app
+WORKDIR /app
+COPY --from=builder /app/project .
+RUN chmod -R +x .
+ENTRYPOINT ["/app/project"]
