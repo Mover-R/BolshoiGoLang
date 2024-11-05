@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 )
 
 func DataStorageFilePath() string {
@@ -15,7 +14,7 @@ func DataStorageFilePath() string {
 		fmt.Println("error directory")
 		return ""
 	}
-	return path.Join(cwd, "data.json")
+	return path.Join(cwd, "data/data.json")
 }
 
 func DataStorageFileRead() (*storage.Storage, error) {
@@ -47,7 +46,7 @@ func DataStorageFileRead() (*storage.Storage, error) {
 }
 
 func DataStorageFileWrite(s *storage.Storage) error {
-	tempFile, err := os.CreateTemp(filepath.Dir("data.json"), "temp-")
+	tempFile, err := os.CreateTemp("data", "temp-")
 	if err != nil {
 		return err
 	}
@@ -57,10 +56,13 @@ func DataStorageFileWrite(s *storage.Storage) error {
 	if err != nil {
 		return fmt.Errorf("fail marshal storage: %w", err)
 	}
+
 	if _, err := tempFile.Write(data); err != nil {
 		return fmt.Errorf("fail writing data: %w", err)
 	}
+
 	tempFile.Close()
 
-	return os.Rename(tempFile.Name(), "data.json")
+	return os.Rename(tempFile.Name(), path.Join("data", "data.json"))
+
 }

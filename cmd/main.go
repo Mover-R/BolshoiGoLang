@@ -3,6 +3,7 @@ package main
 import (
 	"BolshiGoLang/fileutils"
 	"BolshiGoLang/internal/pkg/server"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,7 +15,7 @@ func main() {
 		panic(err)
 	}
 
-	port:=os.Getenv("BASIC_SERVER_PORT")
+	port:="8090" //os.Getenv("BASIC_SERVER_PORT")
 	s := server.NewServer(":" + port, r)
 
 	signalChan := make(chan os.Signal, 1)
@@ -28,6 +29,7 @@ func main() {
 
 	err = fileutils.DataStorageFileWrite(r)
 	if err != nil {
+		fmt.Println("FAILED")
 		return
 	}
 }

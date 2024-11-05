@@ -1,3 +1,3 @@
 
-
-docker compose -f ./docker/project.yaml down
+docker compose -f ./project.yaml down
+#--volumes

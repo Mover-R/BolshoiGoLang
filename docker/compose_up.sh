@@ -1,2 +1,2 @@
 
-docker compose -f ./docker/project.yaml up -d
+docker compose -f ./project.yaml up -d
